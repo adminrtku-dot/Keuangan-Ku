@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saku Ku - Manajemen Anggaran Bulanan</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-12">
+
+    <!-- Header / Navbar -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="p-2 bg-indigo-600 rounded-xl text-white">
+                    <i data-lucide="wallet" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg text-slate-900 leading-none flex items-center gap-2">
+                        Saku Ku
+                        <span id="connection-status-badge" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Lokal (Offline)
+                        </span>
+                    </h1>
+                    <span class="text-xs text-slate-500">Asisten Anggaran Bulanan Cloud</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <!-- Tombol Sync -->
+                <button id="btn-sync-cloud" onclick="pullFromCloud()" class="hidden p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Sinkronisasi dengan Google Sheet">
+                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                </button>
+                <button onclick="openSettingsModal()" class="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors" title="Pengaturan Keamanan & Spreadsheet">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+                <button onclick="exportData()" class="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors" title="Ekspor JSON Lokal">
+                    <i data-lucide="download" class="w-5 h-5"></i>
+                </button>
+                <button onclick="triggerResetConfirmation()" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Reset Semua Data">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Konten Utama -->
+    <main class="max-w-6xl mx-auto px-4 mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Kolom Kiri: Dashboard Ringkasan & Gaji -->
+        <div class="lg:col-span-1 space-y-6">
+            
+            <!-- Widget Seleksi Bulan Aktif -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Bulan Anggaran</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="select-active-month" onchange="changeActiveMonth()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-700 text-sm">
+                        <option value="0">Januari</option>
+                        <option value="1">Februari</option>
+                        <option value="2">Maret</option>
+                        <option value="3">April</option>
+                        <option value="4">Mei</option>
+                        <option value="5">Juni</option>
+                        <option value="6">Juli</option>
+                        <option value="7">Agustus</option>
+                        <option value="8">September</option>
+                        <option value="9">Oktober</option>
+                        <option value="10">November</option>
+                        <option value="11">Desember</option>
+                    </select>
+                    <select id="select-active-year" onchange="changeActiveMonth()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-700 text-sm">
+                        <!-- Diisi dinamis oleh JS -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Kartu Pendapatan Utama -->
+            <div class="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl p-6 shadow-xl shadow-indigo-100 relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 opacity-10 text-white">
+                    <i data-lucide="coins" class="w-40 h-40"></i>
+                </div>
+                <div class="flex justify-between items-start mb-4">
+                    <p class="text-indigo-100 text-sm font-medium">Estimasi Pendapatan</p>
+                    <button onclick="openSalaryModal()" class="p-2 bg-indigo-500/30 hover:bg-indigo-500/50 rounded-lg transition-colors">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <h3 id="display-gaji" class="text-3xl font-extrabold tracking-tight">Rp 0</h3>
+                <div class="mt-6 pt-4 border-t border-indigo-500/30 flex justify-between text-xs text-indigo-100">
+                    <span>Target Harian: <strong id="display-daily-allowance">Rp 0</strong></span>
+                    <span id="display-month-days">30 Hari</span>
+                </div>
+            </div>
+
+            <!-- Ringkasan Alokasi Anggaran -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                <h4 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i data-lucide="pie-chart" class="w-5 h-5 text-indigo-600"></i> Ringkasan Alokasi
+                </h4>
+                <div class="space-y-3">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-500">Total Anggaran Dialokasikan:</span>
+                        <span id="summary-total-budget" class="font-semibold text-slate-800">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-500 font-medium">Sisa / Selisih Dana:</span>
+                        <span id="summary-remaining-budget" class="font-bold">Rp 0</span>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden mt-2">
+                    <div id="budget-progress-bar" class="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Panel Metode Pembayaran -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                <h4 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i data-lucide="credit-card" class="w-5 h-5 text-emerald-600"></i> Distribusi Pembayaran
+                </h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p class="text-xs text-slate-500 mb-1">Total Tunai</p>
+                        <p id="total-tunai" class="font-bold text-slate-800 text-sm">Rp 0</p>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p class="text-xs text-slate-500 mb-1">Total Non-Tunai</p>
+                        <p id="total-nontunai" class="font-bold text-slate-800 text-sm">Rp 0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom Kanan: Rincian Kategori & Item Anggaran -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-extrabold text-slate-900">Rencana Anggaran</h2>
+                    <p class="text-sm text-slate-500">Kelola kategori dan item pengeluaran bulanan Anda.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openGroupModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-sm font-semibold inline-flex items-center gap-2 transition-all">
+                        <i data-lucide="folder-plus" class="w-4 h-4"></i> Kategori Baru
+                    </button>
+                    <button onclick="openItemModal(null)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold inline-flex items-center gap-2 shadow-lg shadow-indigo-100 transition-all">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Tambah Item
+                    </button>
+                </div>
+            </div>
+
+            <!-- Area Render Anggaran Dinamis -->
+            <div id="budget-groups-container" class="space-y-6">
+                <!-- Rendered dynamically -->
+            </div>
+        </div>
+    </main>
+
+    <!-- ==================== DIALOG MODAL ==================== -->
+
+    <!-- Custom Dialog Konfirmasi (Z-INDEX 40: Di bawah PIN, di atas konten normal) -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 flex items-center justify-center p-4 hidden transition-all duration-300">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl transform scale-95 transition-all duration-150">
+            <div class="text-center">
+                <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                </div>
+                <h3 id="confirm-title" class="text-lg font-bold text-slate-900 mb-2">Konfirmasi Tindakan</h3>
+                <p id="confirm-message" class="text-sm text-slate-500 mb-6">Apakah Anda yakin ingin melakukan tindakan ini? Data yang terhapus tidak dapat dikembalikan.</p>
+                <div class="flex justify-center gap-3">
+                    <button id="btn-confirm-cancel" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-xl transition-all">Batal</button>
+                    <button id="btn-confirm-action" class="px-5 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md transition-all">Ya, Lanjutkan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Input PIN Otorisasi (Z-INDEX 100: DI ATAS SEMUA MODAL FORM & KONFIRMASI) -->
+    <div id="pin-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 hidden transition-all duration-300">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-all duration-150 border border-slate-100">
+            <div class="text-center">
+                <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+                    <i data-lucide="lock" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-1">Otorisasi PIN</h3>
+                <p class="text-xs text-slate-500 mb-4">Masukkan PIN Keamanan Anda untuk melanjutkan tindakan ini.</p>
+                
+                <form id="pin-form" onsubmit="submitPinAuthorization(event)" class="space-y-4">
+                    <div class="relative max-w-[180px] mx-auto">
+                        <input type="password" id="form-pin-input" maxlength="6" inputmode="numeric" pattern="[0-9]*" class="w-full text-center px-4 py-3 bg-slate-50 border-2 border-slate-200 focus:border-indigo-500 focus:ring-0 rounded-xl text-2xl font-bold tracking-[0.5em] text-slate-800 focus:outline-none" placeholder="••••" required autocomplete="off">
+                    </div>
+                    
+                    <div id="pin-input-feedback" class="h-5 text-xs font-semibold transition-all duration-200"></div>
+
+                    <div class="flex justify-center gap-3 pt-2">
+                        <button type="button" onclick="closePinModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-xl transition-all">Batal</button>
+                        <button type="submit" class="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition-all">Verifikasi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pengaturan Spreadsheet & Keamanan (Z-INDEX 30: Di bawah PIN) -->
+    <div id="settings-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 flex items-center justify-center p-4 hidden transition-all duration-300">
+        <div class="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl transform scale-95 transition-all duration-150 max-h-[90vh] overflow-y-auto no-scrollbar">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="settings" class="text-indigo-600 w-5 h-5"></i> Pengaturan Aplikasi & Keamanan
+                </h3>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-5">
+                <!-- Bagian Keamanan PIN -->
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
+                    <h4 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                        <i data-lucide="shield" class="w-4.5 h-4.5 text-indigo-600"></i> Proteksi Keamanan PIN
+                    </h4>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-700">Aktifkan Verifikasi PIN</p>
+                            <p class="text-[10px] text-slate-400">Minta PIN sebelum menyimpan atau menghapus data.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="settings-pin-enabled" class="sr-only peer" onchange="togglePinSecurity(this)">
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <div id="settings-pin-fields" class="space-y-3 pt-2 border-t border-slate-200 hidden">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">PIN Saat Ini</label>
+                                <input type="password" id="settings-old-pin" maxlength="6" inputmode="numeric" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-center font-bold tracking-widest focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="••••">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">PIN Baru (Min. 4 angka)</label>
+                                <input type="password" id="settings-new-pin" maxlength="6" inputmode="numeric" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-center font-bold tracking-widest focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="••••">
+                            </div>
+                        </div>
+                        <button type="button" onclick="changeUserPin()" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-lg transition-colors">Perbarui Kode PIN</button>
+                    </div>
+                </div>
+
+                <!-- Bagian Google Sheet Sync -->
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                    <h4 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                        <i data-lucide="database" class="w-4.5 h-4.5 text-emerald-600"></i> Sinkronisasi Google Sheets
+                    </h4>
+                    <div class="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-[11px] text-indigo-700 leading-relaxed space-y-1">
+                        <p class="font-bold flex items-center gap-1 text-indigo-900">
+                            <i data-lucide="info" class="w-3.5 h-3.5"></i> Integrasikan Saku Ku dengan Spreadsheet Anda
+                        </p>
+                        <ol class="list-decimal pl-4 space-y-0.5">
+                            <li>Buka Google Sheets &gt; Ekstensi &gt; Apps Script.</li>
+                            <li>Tempelkan kode penyedia backend Apps Script.</li>
+                            <li>Deploy sebagai <strong>Aplikasi Web</strong> (Akses: <strong>Anyone</strong>).</li>
+                        </ol>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Google Apps Script Web App URL</label>
+                        <input type="url" id="form-gas-url" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="https://script.google.com/macros/s/.../exec">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <button type="button" onclick="testCloudConnection()" class="px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all flex items-center justify-center gap-1.5">
+                            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Test Koneksi
+                        </button>
+                        <button type="button" onclick="requestPushToCloud()" class="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-md">
+                            <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i> Kirim Data ke Cloud
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-100 pt-4 flex justify-between items-center">
+                    <button type="button" onclick="disconnectCloud()" class="text-xs font-semibold text-red-600 hover:underline">Putuskan Koneksi Cloud</button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-xl">Tutup</button>
+                        <button type="button" onclick="saveSettings()" class="px-4 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl">Simpan URL</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Loading Global (Z-INDEX 50: Di atas form normal) -->
+    <div id="loading-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl p-6 shadow-xl max-w-xs w-full text-center space-y-4">
+            <div class="relative w-12 h-12 mx-auto">
+                <div class="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+                <div class="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <p id="loading-text" class="text-sm font-semibold text-slate-700">Menghubungkan ke Cloud...</p>
+        </div>
+    </div>
+
+    <!-- Modal Edit Pendapatan / Gaji (Z-INDEX 30: Di bawah PIN) -->
+    <div id="salary-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 flex items-center justify-center p-4 hidden transition-all duration-300">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl transform scale-95 transition-all duration-150">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="wallet" class="text-indigo-600 w-5 h-5"></i> Edit Pendapatan Bulanan
+                </h3>
+                <button onclick="closeSalaryModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form id="salary-form" onsubmit="requestSaveSalary(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Jumlah Pendapatan (Rp)</label>
+                    <input type="number" id="form-salary-amount" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg font-bold text-slate-800" placeholder="Contoh: 5000000" required min="0">
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeSalaryModal()" class="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-xl transition-all">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition-all">Simpan Pendapatan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Tambah/Edit Kategori (Z-INDEX 30: Di bawah PIN) -->
+    <div id="group-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 flex items-center justify-center p-4 hidden transition-all duration-300">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl transform scale-95 transition-all duration-150">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="group-modal-title" class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="folder-plus" class="text-indigo-600 w-5 h-5"></i> Kategori Baru
+                </h3>
+                <button onclick="closeGroupModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form id="group-form" onsubmit="requestSaveGroup(event)" class="space-y-4">
+                <input type="hidden" id="form-group-id">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Nama Kategori</label>
+                    <input type="text" id="form-group-name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800" placeholder="Contoh: Kebutuhan Pokok, Hiburan" required>
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeGroupModal()" class="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-xl transition-all">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition-all">Simpan Kategori</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Tambah/Edit Item Anggaran (Z-INDEX 30: Di bawah PIN) -->
+    <div id="item-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 flex items-center justify-center p-4 hidden transition-all duration-300">
+        <div class="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl transform scale-95 transition-all duration-150 max-h-[90vh] overflow-y-auto no-scrollbar">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="item-modal-title" class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="shopping-bag" class="text-indigo-600 w-5 h-5"></i> Tambah Item Anggaran
+                </h3>
+                <button onclick="closeItemModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form id="item-form" onsubmit="requestSaveItem(event)" class="space-y-4">
+                <input type="hidden" id="form-item-id">
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Pilih Kategori</label>
+                    <select id="form-item-group-id" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800" required>
+                        <!-- Filled in JS -->
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Nama Pengeluaran</label>
+                    <input type="text" id="form-item-name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800" placeholder="Contoh: Belanja Dapur, Kopi Harian" required>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Tipe Pembayaran</label>
+                        <select id="form-item-payment-type" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800">
+                            <option value="tunai">Tunai / Cash</option>
+                            <option value="nontunai">Non-Tunai (E-Wallet/Transfer)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Sifat Pengeluaran</label>
+                        <select id="form-item-type" onchange="toggleDailyInputMode()" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800">
+                            <option value="bulanan">Sekali sebulan / Tetap</option>
+                            <option value="harian">Harian (Terkalkulasi Otomatis)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Input Nominal Fleksibel -->
+                <div id="wrapper-item-amount">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Jumlah Anggaran Bulanan (Rp)</label>
+                    <input type="number" id="form-item-amount" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800" placeholder="Masukkan Nominal">
+                </div>
+
+                <!-- Input Harian Khusus -->
+                <div id="wrapper-item-daily" class="hidden space-y-3">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Tarif Harian (Rp)</label>
+                            <input type="number" id="form-item-daily-rate" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800" placeholder="Per hari">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Durasi Hari</label>
+                            <input type="number" id="form-item-days-override" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800" placeholder="Jumlah hari">
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <label class="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
+                            <input type="checkbox" id="form-item-auto-days" onchange="toggleAutoDaysCheckbox()" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                            <span>Sesuai jumlah hari bulan berjalan (<span id="span-auto-days-count" class="font-bold text-indigo-600">31</span> Hari)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeItemModal()" class="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-xl transition-all">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition-all">Simpan Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 flex items-center gap-3 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-xl transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <i data-lucide="check-circle" id="toast-icon" class="w-5 h-5 text-emerald-400"></i>
+        <span id="toast-text" class="text-sm font-semibold">Tindakan berhasil!</span>
+    </div>
+
+    <!-- ==================== LOGIC JAVASCRIPT ==================== -->
+    <script>
+        let budgetData = {
+            gaji: 7500000,
+            groups: [
+                {
+                    id: "g1",
+                    name: "Kebutuhan Pokok",
+                    items: [
+                        { id: "i1", name: "Belanja Dapur Mingguan", isDaily: false, dailyRate: 0, daysOverride: 0, tunai: 1500000, non_tunai: 0 },
+                        { id: "i2", name: "Uang Makan Siang Kerja", isDaily: true, dailyRate: 35000, daysOverride: 20, tunai: 0, non_tunai: 700000 }
+                    ]
+                },
+                {
+                    id: "g2",
+                    name: "Gaya Hidup & Hiburan",
+                    items: [
+                        { id: "i3", name: "Langganan Netflix & Spotify", isDaily: false, dailyRate: 0, daysOverride: 0, tunai: 0, non_tunai: 230000 }
+                    ]
+                }
+            ]
+        };
+
+        // Definisi Palet Warna Premium Tailwind untuk Kategori Anggaran
+        const colorPalettes = [
+            {
+                border: "border-t-4 border-indigo-500",
+                icon: "text-indigo-500",
+                badge: "bg-indigo-50 text-indigo-700 border-indigo-100",
+                accentText: "text-indigo-600"
+            },
+            {
+                border: "border-t-4 border-emerald-500",
+                icon: "text-emerald-500",
+                badge: "bg-emerald-50 text-emerald-700 border-emerald-100",
+                accentText: "text-emerald-600"
+            },
+            {
+                border: "border-t-4 border-amber-500",
+                icon: "text-amber-500",
+                badge: "bg-amber-50 text-amber-700 border-amber-100",
+                accentText: "text-amber-600"
+            },
+            {
+                border: "border-t-4 border-rose-500",
+                icon: "text-rose-500",
+                badge: "bg-rose-50 text-rose-700 border-rose-100",
+                accentText: "text-rose-600"
+            },
+            {
+                border: "border-t-4 border-sky-500",
+                icon: "text-sky-500",
+                badge: "bg-sky-50 text-sky-700 border-sky-100",
+                accentText: "text-sky-600"
+            },
+            {
+                border: "border-t-4 border-violet-500",
+                icon: "text-violet-500",
+                badge: "bg-violet-50 text-violet-700 border-violet-100",
+                accentText: "text-violet-600"
+            },
+            {
+                border: "border-t-4 border-teal-500",
+                icon: "text-teal-500",
+                badge: "bg-teal-50 text-teal-700 border-teal-100",
+                accentText: "text-teal-600"
+            },
+            {
+                border: "border-t-4 border-fuchsia-500",
+                icon: "text-fuchsia-500",
+                badge: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-100",
+                accentText: "text-fuchsia-600"
+            }
+        ];
+
+        let pinSecurity = {
+            enabled: true,
+            pin: "1234"
+        };
+
+        let gSheetUrl = "";
+
+        const currentSystemDate = new Date();
+        let selectedMonth = currentSystemDate.getMonth();
+        let selectedYear = currentSystemDate.getFullYear();
+
+        function getCurrentMonthInfo() {
+            const days = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+            return { days };
+        }
+
+        function initApp() {
+            const yearSelect = document.getElementById('select-active-year');
+            yearSelect.innerHTML = '';
+            for (let y = selectedYear - 5; y <= selectedYear + 5; y++) {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                if (y === selectedYear) opt.selected = true;
+                yearSelect.appendChild(opt);
+            }
+
+            document.getElementById('select-active-month').value = selectedMonth;
+
+            const savedUrl = localStorage.getItem('sakukita_gsheet_url');
+            if (savedUrl) {
+                gSheetUrl = savedUrl;
+                document.getElementById('form-gas-url').value = gSheetUrl;
+                updateCloudStatus(true);
+            } else {
+                updateCloudStatus(false);
+            }
+
+            const localData = localStorage.getItem('sakukita_budget_data');
+            if (localData) {
+                try {
+                    budgetData = JSON.parse(localData);
+                } catch (e) {
+                    console.error("Gagal memuat simpanan data lokal.", e);
+                }
+            }
+
+            const savedPinConfig = localStorage.getItem('sakukita_pin_security');
+            if (savedPinConfig) {
+                try {
+                    pinSecurity = JSON.parse(savedPinConfig);
+                } catch (e) {
+                    console.error("Gagal memuat pengaturan PIN.", e);
+                }
+            }
+
+            const pinCheckbox = document.getElementById('settings-pin-enabled');
+            pinCheckbox.checked = pinSecurity.enabled;
+            togglePinSecurity(pinCheckbox);
+
+            lucide.createIcons();
+            
+            if (gSheetUrl) {
+                pullFromCloud(true);
+            } else {
+                updateCalculations();
+            }
+        }
+
+        function changeActiveMonth() {
+            selectedMonth = parseInt(document.getElementById('select-active-month').value);
+            selectedYear = parseInt(document.getElementById('select-active-year').value);
+            
+            const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            const infoHari = getCurrentMonthInfo().days;
+            showToast(`Berpindah ke periode ${namaBulan[selectedMonth]} ${selectedYear} (${infoHari} Hari)`, "success");
+            
+            document.getElementById('form-item-days-override').value = infoHari;
+            document.getElementById('span-auto-days-count').textContent = infoHari;
+
+            updateCalculations();
+        }
+
+        function updateCloudStatus(connected) {
+            const badge = document.getElementById('connection-status-badge');
+            const syncBtn = document.getElementById('btn-sync-cloud');
+            if (connected) {
+                badge.className = "px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Terkoneksi Cloud`;
+                syncBtn.classList.remove('hidden');
+            } else {
+                badge.className = "px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Lokal (Offline)`;
+                syncBtn.classList.add('hidden');
+            }
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('sakukita_budget_data', JSON.stringify(budgetData));
+        }
+
+        function savePinToStorage() {
+            localStorage.setItem('sakukita_pin_security', JSON.stringify(pinSecurity));
+        }
+
+        function updateCalculations(skipCloudAutoSync = false) {
+            const daysInMonth = getCurrentMonthInfo().days;
+            document.getElementById('display-month-days').textContent = `${daysInMonth} Hari`;
+            document.getElementById('display-gaji').textContent = formatRupiah(budgetData.gaji);
+
+            let totalTunai = 0;
+            let totalNonTunai = 0;
+
+            budgetData.groups.forEach(group => {
+                group.items.forEach(item => {
+                    if (item.isDaily) {
+                        const activeDays = (!item.daysOverride || item.daysOverride === 0) ? daysInMonth : item.daysOverride;
+                        const calculatedCost = item.dailyRate * activeDays;
+                        if (item.tunai > 0 || (item.tunai === 0 && item.non_tunai === 0)) {
+                            item.tunai = calculatedCost;
+                            item.non_tunai = 0;
+                        } else {
+                            item.non_tunai = calculatedCost;
+                            item.tunai = 0;
+                        }
+                    }
+                    totalTunai += Number(item.tunai || 0);
+                    totalNonTunai += Number(item.non_tunai || 0);
+                });
+            });
+
+            const totalAlokasi = totalTunai + totalNonTunai;
+            const sisaAnggaran = budgetData.gaji - totalAlokasi;
+
+            document.getElementById('total-tunai').textContent = formatRupiah(totalTunai);
+            document.getElementById('total-nontunai').textContent = formatRupiah(totalNonTunai);
+            document.getElementById('summary-total-budget').textContent = formatRupiah(totalAlokasi);
+            
+            const remainingEl = document.getElementById('summary-remaining-budget');
+            remainingEl.textContent = formatRupiah(sisaAnggaran);
+            if (sisaAnggaran < 0) {
+                remainingEl.className = "font-bold text-red-600";
+            } else if (sisaAnggaran === 0) {
+                remainingEl.className = "font-bold text-slate-800";
+            } else {
+                remainingEl.className = "font-bold text-emerald-600";
+            }
+
+            const harianEfektif = budgetData.gaji / daysInMonth;
+            document.getElementById('display-daily-allowance').textContent = formatRupiah(harianEfektif);
+
+            let percent = (totalAlokasi / budgetData.gaji) * 100;
+            if (percent > 100) percent = 100;
+            if (isNaN(percent) || !isFinite(percent)) percent = 0;
+
+            const progressBar = document.getElementById('budget-progress-bar');
+            progressBar.style.width = `${percent}%`;
+            if (percent > 100) {
+                progressBar.className = "bg-red-600 h-2.5 rounded-full transition-all duration-300";
+            } else if (percent > 90) {
+                progressBar.className = "bg-amber-500 h-2.5 rounded-full transition-all duration-300";
+            } else {
+                progressBar.className = "bg-indigo-600 h-2.5 rounded-full transition-all duration-300";
+            }
+
+            saveToStorage();
+            renderTables();
+
+            if (gSheetUrl && !skipCloudAutoSync) {
+                silentPushToCloud();
+            }
+        }
+
+        function renderTables() {
+            const container = document.getElementById('budget-groups-container');
+            container.innerHTML = '';
+            const daysInMonth = getCurrentMonthInfo().days;
+
+            if (budgetData.groups.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl p-8 border border-dashed border-slate-300 text-center text-slate-500">
+                        <i data-lucide="package-open" class="w-12 h-12 mx-auto text-slate-400 mb-3"></i>
+                        <p class="font-bold text-slate-800">Belum ada Kategori Anggaran</p>
+                        <p class="text-xs mb-4">Buat kategori pengeluaran pertama Anda agar bisa mulai menambahkan pengeluaran.</p>
+                        <button onclick="openGroupModal()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold inline-flex items-center gap-2 shadow-sm">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Buat Kategori Pertama
+                        </button>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            // Loop untuk merender setiap kategori anggaran
+            budgetData.groups.forEach((group, index) => {
+                let groupTotal = 0;
+                let rowsHtml = '';
+
+                // Memilih palet warna secara bergantian sesuai urutan kategori
+                const colorPalette = colorPalettes[index % colorPalettes.length];
+
+                if (group.items.length === 0) {
+                    rowsHtml = `
+                        <tr>
+                            <td colspan="4" class="px-4 py-8 text-center text-xs text-slate-400 font-medium">
+                                Belum ada item di kategori ini. Klik "Tambah Item" untuk mengisinya.
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    group.items.forEach(item => {
+                        const activeDays = (!item.daysOverride || item.daysOverride === 0) ? daysInMonth : item.daysOverride;
+                        const itemCost = item.isDaily 
+                            ? (item.dailyRate * activeDays)
+                            : (item.tunai + item.non_tunai);
+
+                        groupTotal += itemCost;
+                        const paymentLabel = item.tunai > 0 ? 'Tunai' : 'Non-Tunai';
+                        const badgeColor = item.tunai > 0 ? 'bg-sky-50 text-sky-700 border-sky-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100';
+
+                        rowsHtml += `
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="px-4 py-3">
+                                    <div class="font-semibold text-slate-800 text-sm">${item.name}</div>
+                                    <div class="text-slate-400 text-[11px] mt-0.5">
+                                        ${item.isDaily ? `Harian (Rp ${formatNumber(item.dailyRate)} × ${activeDays} Hari)` : 'Metode Sekali Saja / Tetap'}
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-[10px] font-bold rounded-lg border ${badgeColor}">
+                                        ${paymentLabel}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right font-bold text-slate-900 text-sm whitespace-nowrap">
+                                    ${formatRupiah(itemCost)}
+                                </td>
+                                <td class="px-4 py-3 text-right whitespace-nowrap">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button onclick="editItem('${group.id}', '${item.id}')" class="p-1.5 text-slate-500 hover:text-indigo-600 rounded-lg hover:bg-slate-100 transition-all">
+                                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                        </button>
+                                        <button onclick="triggerDeleteItemConfirmation('${group.id}', '${item.id}')" class="p-1.5 text-slate-500 hover:text-red-600 rounded-lg hover:bg-red-50 transition-all">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                const groupCard = document.createElement('div');
+                // Menggunakan border-t-4 dinamis dari palet warna untuk membedakan visual kategori
+                groupCard.className = `bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden ${colorPalette.border}`;
+                groupCard.innerHTML = `
+                    <!-- Header Kategori dengan aksen warna pendukung -->
+                    <div class="px-4 py-3.5 bg-slate-50/70 border-b border-slate-150 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="folder" class="w-5 h-5 ${colorPalette.icon}"></i>
+                            <h3 class="font-bold text-slate-800 text-sm">${group.name}</h3>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-semibold text-slate-500">
+                                Subtotal: <strong class="${colorPalette.accentText} font-extrabold">${formatRupiah(groupTotal)}</strong>
+                            </span>
+                            <div class="flex items-center border-l border-slate-200 pl-3 gap-1">
+                                <button onclick="editGroup('${group.id}')" class="p-1 text-slate-500 hover:text-indigo-600 hover:bg-white rounded transition-colors">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="triggerDeleteGroupConfirmation('${group.id}')" class="p-1 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                                    <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto overflow-y-hidden">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-white border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                                    <th class="px-4 py-2.5">Item Anggaran</th>
+                                    <th class="px-4 py-2.5">Tipe Bayar</th>
+                                    <th class="px-4 py-2.5 text-right">Alokasi Dana</th>
+                                    <th class="px-4 py-2.5 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                container.appendChild(groupCard);
+            });
+
+            lucide.createIcons();
+        }
+
+        // ==================== ENGINE OTORISASI PIN ====================
+        let onPinAuthorizedCallback = null;
+
+        function requirePinAuthorization(callback) {
+            if (!pinSecurity.enabled) {
+                callback();
+                return;
+            }
+
+            onPinAuthorizedCallback = callback;
+            
+            const pinInput = document.getElementById('form-pin-input');
+            pinInput.value = '';
+            
+            const feedback = document.getElementById('pin-input-feedback');
+            feedback.textContent = '';
+            feedback.className = "h-5 text-xs font-semibold transition-all duration-200 text-slate-400";
+
+            const modal = document.getElementById('pin-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.firstElementChild.classList.remove('scale-95');
+                modal.firstElementChild.classList.add('scale-100');
+                pinInput.focus();
+            }, 50);
+            lucide.createIcons();
+        }
+
+        function closePinModal() {
+            const modal = document.getElementById('pin-modal');
+            modal.firstElementChild.classList.add('scale-95');
+            modal.firstElementChild.classList.remove('scale-100');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                onPinAuthorizedCallback = null;
+            }, 150);
+        }
+
+        function submitPinAuthorization(e) {
+            e.preventDefault();
+            const inputVal = document.getElementById('form-pin-input').value;
+            const feedback = document.getElementById('pin-input-feedback');
+
+            if (inputVal === pinSecurity.pin) {
+                feedback.textContent = "✔ PIN Benar! Mengotorisasi...";
+                feedback.className = "h-5 text-xs font-semibold text-emerald-600 transition-all duration-200 animate-pulse";
+                
+                showToast("Otorisasi PIN Berhasil!", "success");
+
+                setTimeout(() => {
+                    if (onPinAuthorizedCallback) {
+                        onPinAuthorizedCallback();
+                    }
+                    closePinModal();
+                }, 800);
+            } else {
+                feedback.textContent = "❌ PIN Salah, akses ditolak!";
+                feedback.className = "h-5 text-xs font-semibold text-red-600 transition-all duration-200 animate-bounce";
+                
+                showToast("Akses Ditolak: PIN Salah!", "error");
+                
+                const inputEl = document.getElementById('form-pin-input');
+                inputEl.classList.add('border-red-500', 'bg-red-50');
+                setTimeout(() => {
+                    inputEl.classList.remove('border-red-500', 'bg-red-50');
+                    inputEl.value = '';
+                    inputEl.focus();
+                }, 1000);
+            }
+        }
+
+        function togglePinSecurity(checkbox) {
+            const pinFields = document.getElementById('settings-pin-fields');
+            pinSecurity.enabled = checkbox.checked;
+            savePinToStorage();
+
+            if (checkbox.checked) {
+                pinFields.classList.remove('hidden');
+            } else {
+                pinFields.classList.add('hidden');
+            }
+        }
+
+        function changeUserPin() {
+            const oldPin = document.getElementById('settings-old-pin').value;
+            const newPin = document.getElementById('settings-new-pin').value;
+
+            if (oldPin !== pinSecurity.pin) {
+                showToast("PIN saat ini salah!", "error");
+                return;
+            }
+
+            if (newPin.length < 4) {
+                showToast("PIN baru minimal harus 4 digit angka!", "error");
+                return;
+            }
+
+            pinSecurity.pin = newPin;
+            savePinToStorage();
+            
+            document.getElementById('settings-old-pin').value = '';
+            document.getElementById('settings-new-pin').value = '';
+            showToast("Kode PIN Berhasil diperbarui!", "success");
+        }
+
+        // ==================== CUSTOM CONFIRMATION ====================
+        let currentConfirmCallback = null;
+
+        function showCustomConfirm(title, message, callback) {
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            
+            currentConfirmCallback = callback;
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.firstElementChild.classList.remove('scale-95');
+                modal.firstElementChild.classList.add('scale-100');
+            }, 50);
+
+            const btnCancel = document.getElementById('btn-confirm-cancel');
+            const btnAction = document.getElementById('btn-confirm-action');
+
+            const handleCancel = () => {
+                closeCustomConfirm();
+                btnCancel.removeEventListener('click', handleCancel);
+                btnAction.removeEventListener('click', handleAction);
+            };
+
+            const handleAction = () => {
+                if (currentConfirmCallback) {
+                    requirePinAuthorization(currentConfirmCallback);
+                }
+                closeCustomConfirm();
+                btnCancel.removeEventListener('click', handleCancel);
+                btnAction.removeEventListener('click', handleAction);
+            };
+
+            btnCancel.addEventListener('click', handleCancel);
+            btnAction.addEventListener('click', handleAction);
+        }
+
+        function closeCustomConfirm() {
+            const modal = document.getElementById('confirm-modal');
+            modal.firstElementChild.classList.add('scale-95');
+            modal.firstElementChild.classList.remove('scale-100');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 150);
+        }
+
+        // ==================== OPERASI KATEGORI (GROUP) ====================
+        function openGroupModal(groupId = null) {
+            const modal = document.getElementById('group-modal');
+            const titleEl = document.getElementById('group-modal-title');
+            const formId = document.getElementById('form-group-id');
+            const formName = document.getElementById('form-group-name');
+
+            if (groupId) {
+                const group = budgetData.groups.find(g => g.id === groupId);
+                if (group) {
+                    titleEl.innerHTML = `<i data-lucide="pencil" class="text-indigo-600 w-5 h-5"></i> Edit Kategori`;
+                    formId.value = group.id;
+                    formName.value = group.name;
+                }
+            } else {
+                titleEl.innerHTML = `<i data-lucide="folder-plus" class="text-indigo-600 w-5 h-5"></i> Kategori Baru`;
+                formId.value = '';
+                formName.value = '';
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.firstElementChild.classList.remove('scale-95');
+                modal.firstElementChild.classList.add('scale-100');
+            }, 50);
+            lucide.createIcons();
+        }
+
+        function closeGroupModal() {
+            const modal = document.getElementById('group-modal');
+            modal.firstElementChild.classList.add('scale-95');
+            modal.firstElementChild.classList.remove('scale-100');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 150);
+        }
+
+        function requestSaveGroup(e) {
+            e.preventDefault();
+            requirePinAuthorization(() => {
+                saveGroup();
+            });
+        }
+
+        function saveGroup() {
+            const id = document.getElementById('form-group-id').value;
+            const name = document.getElementById('form-group-name').value.trim();
+
+            if (!name) return;
+
+            if (id) {
+                const group = budgetData.groups.find(g => g.id === id);
+                if (group) {
+                    group.name = name;
+                    showToast(`Kategori berhasil diubah menjadi "${name}".`, "success");
+                }
+            } else {
+                const newGroup = {
+                    id: 'g_' + Date.now(),
+                    name: name,
+                    items: []
+                };
+                budgetData.groups.push(newGroup);
+                showToast(`Kategori "${name}" berhasil dibuat.`, "success");
+            }
+
+            closeGroupModal();
+            updateCalculations();
+        }
+
+        function editGroup(groupId) {
+            openGroupModal(groupId);
+        }
+
+        function triggerDeleteGroupConfirmation(groupId) {
+            const group = budgetData.groups.find(g => g.id === groupId);
+            if (!group) return;
+
+            showCustomConfirm(
+                "Hapus Kategori", 
+                `Apakah Anda yakin ingin menghapus kategori "${group.name}" beserta seluruh item anggaran di dalamnya?`,
+                () => {
+                    const groupIndex = budgetData.groups.findIndex(g => g.id === groupId);
+                    if (groupIndex > -1) {
+                        budgetData.groups.splice(groupIndex, 1);
+                        showToast(`Kategori "${group.name}" berhasil dihapus.`, "success");
+                        updateCalculations();
+                    }
+                }
+            );
+        }
+
+        // ==================== OPERASI ITEM ANGGARAN ====================
+        function openItemModal(itemId = null, groupId = null) {
+            const modal = document.getElementById('item-modal');
+            const titleEl = document.getElementById('item-modal-title');
+            const selectGroup = document.getElementById('form-item-group-id');
+            const form = document.getElementById('item-form');
+            form.reset();
+
+            const daysInMonth = getCurrentMonthInfo().days;
+            document.getElementById('span-auto-days-count').textContent = daysInMonth;
+
+            selectGroup.innerHTML = '';
+            budgetData.groups.forEach(g => {
+                selectGroup.innerHTML += `<option value="${g.id}">${g.name}</option>`;
+            });
+
+            if (budgetData.groups.length === 0) {
+                showToast("Buat kategori anggaran terlebih dahulu!", "error");
+                return;
+            }
+
+            if (itemId) {
+                const group = budgetData.groups.find(g => g.id === groupId);
+                const item = group ? group.items.find(i => i.id === itemId) : null;
+
+                if (item) {
+                    titleEl.innerHTML = `<i data-lucide="pencil" class="text-indigo-600 w-5 h-5"></i> Edit Item Anggaran`;
+                    document.getElementById('form-item-id').value = item.id;
+                    selectGroup.value = groupId;
+                    document.getElementById('form-item-name').value = item.name;
+                    document.getElementById('form-item-payment-type').value = item.tunai > 0 ? 'tunai' : 'nontunai';
+                    document.getElementById('form-item-type').value = item.isDaily ? 'harian' : 'bulanan';
+
+                    if (item.isDaily) {
+                        document.getElementById('form-item-daily-rate').value = item.dailyRate || 0;
+                        
+                        if (!item.daysOverride || item.daysOverride === 0) {
+                            document.getElementById('form-item-auto-days').checked = true;
+                            document.getElementById('form-item-days-override').value = daysInMonth;
+                        } else {
+                            document.getElementById('form-item-auto-days').checked = false;
+                            document.getElementById('form-item-days-override').value = item.daysOverride;
+                        }
+                        document.getElementById('form-item-amount').value = '';
+                    } else {
+                        document.getElementById('form-item-daily-rate').value = '';
+                        document.getElementById('form-item-auto-days').checked = true;
+                        document.getElementById('form-item-days-override').value = daysInMonth;
+                        document.getElementById('form-item-amount').value = item.tunai > 0 ? item.tunai : item.non_tunai;
+                    }
+                }
+            } else {
+                titleEl.innerHTML = `<i data-lucide="plus-circle" class="text-indigo-600 w-5 h-5"></i> Tambah Item Anggaran`;
+                document.getElementById('form-item-id').value = '';
+                document.getElementById('form-item-auto-days').checked = true;
+                document.getElementById('form-item-days-override').value = daysInMonth;
+            }
+
+            toggleDailyInputMode();
+            toggleAutoDaysCheckbox();
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.firstElementChild.classList.remove('scale-95');
+                modal.firstElementChild.classList.add('scale-100');
+            }, 50);
+            lucide.createIcons();
+        }
+
+        function closeItemModal() {
+            const modal = document.getElementById('item-modal');
+            modal.firstElementChild.classList.add('scale-95');
+            modal.firstElementChild.classList.remove('scale-100');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 150);
+        }
+
+        function toggleAutoDaysCheckbox() {
+            const autoDaysChecked = document.getElementById('form-item-auto-days').checked;
+            const daysInput = document.getElementById('form-item-days-override');
+            if (autoDaysChecked) {
+                daysInput.value = getCurrentMonthInfo().days;
+                daysInput.setAttribute('readonly', 'true');
+                daysInput.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+            } else {
+                daysInput.removeAttribute('readonly');
+                daysInput.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+            }
+        }
+
+        function toggleDailyInputMode() {
+            const type = document.getElementById('form-item-type').value;
+            const amountWrapper = document.getElementById('wrapper-item-amount');
+            const dailyWrapper = document.getElementById('wrapper-item-daily');
+
+            if (type === 'harian') {
+                amountWrapper.classList.add('hidden');
+                dailyWrapper.classList.remove('hidden');
+                document.getElementById('form-item-daily-rate').setAttribute('required', 'true');
+                document.getElementById('form-item-amount').removeAttribute('required');
+            } else {
+                amountWrapper.classList.remove('hidden');
+                dailyWrapper.classList.add('hidden');
+                document.getElementById('form-item-amount').setAttribute('required', 'true');
+                document.getElementById('form-item-daily-rate').removeAttribute('required');
+            }
+        }
+
+        function requestSaveItem(e) {
+            e.preventDefault();
+            requirePinAuthorization(() => {
+                saveItem();
+            });
+        }
+
+        function saveItem() {
+            const itemId = document.getElementById('form-item-id').value;
+            const targetGroupId = document.getElementById('form-item-group-id').value;
+            const name = document.getElementById('form-item-name').value.trim();
+            const paymentType = document.getElementById('form-item-payment-type').value;
+            const type = document.getElementById('form-item-type').value;
+
+            const isDaily = (type === 'harian');
+            const daysInMonth = getCurrentMonthInfo().days;
+
+            let itemData = {
+                id: itemId || 'i_' + Date.now(),
+                name: name,
+                isDaily: isDaily,
+                dailyRate: 0,
+                daysOverride: daysInMonth,
+                tunai: 0,
+                non_tunai: 0
+            };
+
+            if (isDaily) {
+                itemData.dailyRate = Number(document.getElementById('form-item-daily-rate').value) || 0;
+                
+                const isAutoDays = document.getElementById('form-item-auto-days').checked;
+                itemData.daysOverride = isAutoDays ? 0 : (Number(document.getElementById('form-item-days-override').value) || daysInMonth);
+                
+                const activeDays = isAutoDays ? daysInMonth : itemData.daysOverride;
+                const totalCost = itemData.dailyRate * activeDays;
+                if (paymentType === 'tunai') {
+                    itemData.tunai = totalCost;
+                } else {
+                    itemData.non_tunai = totalCost;
+                }
+            } else {
+                const amount = Number(document.getElementById('form-item-amount').value) || 0;
+                if (paymentType === 'tunai') {
+                    itemData.tunai = amount;
+                } else {
+                    itemData.non_tunai = amount;
+                }
+            }
+
+            const targetGroup = budgetData.groups.find(g => g.id === targetGroupId);
+            if (!targetGroup) return;
+
+            if (itemId) {
+                budgetData.groups.forEach(g => {
+                    const idx = g.items.findIndex(i => i.id === itemId);
+                    if (idx > -1) g.items.splice(idx, 1);
+                });
+                targetGroup.items.push(itemData);
+                showToast(`"${name}" berhasil diperbarui.`, "success");
+            } else {
+                targetGroup.items.push(itemData);
+                showToast(`"${name}" berhasil ditambahkan.`, "success");
+            }
+
+            closeItemModal();
+            updateCalculations();
+        }
+
+        function editItem(groupId, itemId) {
+            openItemModal(itemId, groupId);
+        }
+
+        function triggerDeleteItemConfirmation(groupId, itemId) {
+            const group = budgetData.groups.find(g => g.id === groupId);
+            if (!group) return;
+
+            const item = group.items.find(i => i.id === itemId);
+            if (!item) return;
+
+            showCustomConfirm(
+                "Hapus Item Anggaran",
+                `Apakah Anda yakin ingin menghapus "${item.name}"?`,
+                () => {
+                    const itemIndex = group.items.findIndex(i => i.id === itemId);
+                    if (itemIndex > -1) {
+                        group.items.splice(itemIndex, 1);
+                        showToast(`"${item.name}" berhasil dihapus.`, "success");
+                        updateCalculations();
+                    }
+                }
+            );
+        }
+
+        // ==================== OPERASI GAJI / PENDAPATAN ====================
+        function openSalaryModal() {
+            document.getElementById('form-salary-amount').value = budgetData.gaji;
+            const modal = document.getElementById('salary-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.firstElementChild.classList.remove('scale-95');
+                modal.firstElementChild.classList.add('scale-100');
+            }, 50);
+            lucide.createIcons();
+        }
+
+        function closeSalaryModal() {
+            const modal = document.getElementById('salary-modal');
+            modal.firstElementChild.classList.add('scale-95');
+            modal.firstElementChild.classList.remove('scale-100');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 150);
+        }
+
+        function requestSaveSalary(e) {
+            e.preventDefault();
+            requirePinAuthorization(() => {
+                saveSalary();
+            });
+        }
+
+        function saveSalary() {
+            const newSalary = parseFloat(document.getElementById('form-salary-amount').value) || 0;
+            budgetData.gaji = newSalary;
+            closeSalaryModal();
+            updateCalculations();
+            showToast("Nominal pendapatan bulanan berhasil disimpan!", "success");
+        }
+
+        // ==================== PENGATURAN & SINKRONISASI ====================
+        function openSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.firstElementChild.classList.remove('scale-95');
+                modal.firstElementChild.classList.add('scale-100');
+            }, 50);
+            lucide.createIcons();
+        }
+
+        function closeSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            modal.firstElementChild.classList.add('scale-95');
+            modal.firstElementChild.classList.remove('scale-100');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 150);
+        }
+
+        function showLoading(text) {
+            document.getElementById('loading-text').textContent = text;
+            document.getElementById('loading-modal').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-modal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            const urlInput = document.getElementById('form-gas-url').value.trim();
+            if (urlInput) {
+                gSheetUrl = urlInput;
+                localStorage.setItem('sakukita_gsheet_url', gSheetUrl);
+                updateCloudStatus(true);
+                showToast("URL Spreadsheet disimpan. Mengunduh data terbaru...", "success");
+                pullFromCloud();
+            } else {
+                showToast("Tuliskan URL spreadsheet yang valid.", "error");
+            }
+        }
+
+        function disconnectCloud() {
+            gSheetUrl = "";
+            localStorage.removeItem('sakukita_gsheet_url');
+            document.getElementById('form-gas-url').value = "";
+            updateCloudStatus(false);
+            closeSettingsModal();
+            showToast("Koneksi cloud diputuskan. Aplikasi berjalan dalam mode lokal.", "success");
+        }
+
+        async function pullFromCloud(isSilent = false) {
+            if (!gSheetUrl) return;
+            if (!isSilent) showLoading("Mengunduh data anggaran dari Spreadsheet...");
+
+            try {
+                let attempt = 0;
+                let response = null;
+                const maxAttempts = 5;
+
+                while (attempt < maxAttempts) {
+                    try {
+                        response = await fetch(gSheetUrl + (gSheetUrl.includes('?') ? '&' : '?') + 'api=true', { method: 'GET' });
+                        if (response.ok) break;
+                    } catch (e) {
+                        attempt++;
+                        if (attempt >= maxAttempts) throw e;
+                        const delay = Math.pow(2, attempt) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+
+                const cloudResult = await response.json();
+                if (cloudResult && cloudResult.status === "success" && cloudResult.data) {
+                    budgetData = cloudResult.data;
+                    saveToStorage();
+                    updateCalculations(true); 
+                    if (!isSilent) showToast("Berhasil sinkronisasi dari Spreadsheet!", "success");
+                } else {
+                    if (!isSilent) showToast("Format respons spreadsheet salah atau kosong.", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                if (!isSilent) showToast("Gagal mengunduh data. Periksa URL Apps Script Anda.", "error");
+            } finally {
+                if (!isSilent) hideLoading();
+                closeSettingsModal();
+            }
+        }
+
+        function requestPushToCloud() {
+            requirePinAuthorization(() => {
+                pushToCloud();
+            });
+        }
+
+        async function pushToCloud() {
+            if (!gSheetUrl) {
+                showToast("Sambungkan ke spreadsheet terlebih dahulu!", "error");
+                return;
+            }
+            showLoading("Mengunggah data anggaran ke Spreadsheet...");
+
+            try {
+                const response = await fetch(gSheetUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: "sync", data: budgetData })
+                });
+
+                showToast("Data anggaran berhasil diunggah ke Google Sheets!", "success");
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal mengunggah data ke Google Sheets.", "error");
+            } finally {
+                hideLoading();
+                closeSettingsModal();
+            }
+        }
+
+        async function silentPushToCloud() {
+            if (!gSheetUrl) return;
+            try {
+                await fetch(gSheetUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: "sync", data: budgetData })
+                });
+            } catch (err) {
+                console.error("Gagal melakukan sinkronisasi latar belakang ke cloud:", err);
+            }
+        }
+
+        async function testCloudConnection() {
+            const urlInput = document.getElementById('form-gas-url').value.trim();
+            if (!urlInput) {
+                showToast("Silakan masukkan URL Apps Script terlebih dahulu.", "error");
+                return;
+            }
+            showLoading("Menguji koneksi...");
+            try {
+                const response = await fetch(urlInput + (urlInput.includes('?') ? '&' : '?') + 'api=true', { method: 'GET' });
+                if (response.ok) {
+                    showToast("Koneksi Sukses! Spreadsheet merespons dengan baik.", "success");
+                } else {
+                    showToast("Koneksi gagal. Server mengembalikan error: " + response.status, "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Koneksi gagal. Periksa kembali URL dan pastikan Akses diatur ke 'Anyone'.", "error");
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ==================== EKSPOR LOKAL & RESET DATA ====================
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(budgetData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `sakuku_anggaran_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast("Berhasil mengekspor cadangan data JSON.", "success");
+        }
+
+        function triggerResetConfirmation() {
+            showCustomConfirm(
+                "Reset Semua Data",
+                "Apakah Anda yakin ingin menghapus seluruh data anggaran dan kembali ke pengaturan awal?",
+                () => {
+                    localStorage.removeItem('sakukita_budget_data');
+                    budgetData = {
+                        gaji: 7500000,
+                        groups: [
+                            {
+                                id: "g1",
+                                name: "Kebutuhan Pokok",
+                                items: [
+                                    { id: "i1", name: "Belanja Dapur Mingguan", isDaily: false, dailyRate: 0, daysOverride: 0, tunai: 1500000, non_tunai: 0 }
+                                ]
+                            }
+                        ]
+                    };
+                    updateCalculations();
+                    showToast("Semua data anggaran telah direset.", "success");
+                }
+            );
+        }
+
+        // ==================== TOAST & FORMATTING HELPERS ====================
+        function showToast(message, type = "success") {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toast-icon');
+            const toastText = document.getElementById('toast-text');
+            
+            toastText.textContent = message;
+            
+            if (type === "success") {
+                toastIcon.setAttribute("data-lucide", "check-circle");
+                toastIcon.className = "w-5 h-5 text-emerald-400";
+            } else {
+                toastIcon.setAttribute("data-lucide", "x-circle");
+                toastIcon.className = "w-5 h-5 text-red-400";
+            }
+            
+            lucide.createIcons();
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 3000);
+        }
+
+        function formatRupiah(value) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                maximumFractionDigits: 0
+            }).format(value);
+        }
+
+        function formatNumber(value) {
+            return new Intl.NumberFormat('id-ID', {
+                maximumFractionDigits: 0
+            }).format(value);
+        }
+
+        window.onload = function() {
+            initApp();
+        };
+    </script>
+</body>
+</html>
